@@ -13,7 +13,7 @@ const CORE_ASSETS = [
     BASE_PATH,
     `${BASE_PATH}index.html`,
     `${BASE_PATH}assets/main.css`,
-    `${BASE_PATH}assets/manifest.json`,
+    `${BASE_PATH}assets/manifest.webmanifest`,
     `${BASE_PATH}assets/sw-register.js`,
     `${BASE_PATH}assets/icon-192.png`,
     `${BASE_PATH}assets/icon-512.png`,

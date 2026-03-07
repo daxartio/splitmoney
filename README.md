@@ -45,7 +45,7 @@ Build output:
 
 Included assets:
 
-- `assets/manifest.json`
+- `assets/manifest.webmanifest`
 - `assets/service-worker.js`
 - `assets/sw-register.js`
 - `assets/icon-192.png`, `assets/icon-512.png`, `assets/apple-touch-icon.png`

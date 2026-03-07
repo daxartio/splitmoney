@@ -11,7 +11,7 @@ pub fn PwaHead() -> Element {
         document::Meta { name: "apple-mobile-web-app-title", content: "SplitMoney Lite" }
         document::Link { rel: "apple-touch-icon", sizes: "180x180", href: asset!("/assets/apple-touch-icon.png") }
         document::Link { rel: "icon", sizes: "192x192", href: asset!("/assets/icon-192.png"), r#type: "image/png" }
-        document::Link { rel: "manifest", href: asset!("/assets/manifest.json") }
+        document::Link { rel: "manifest", href: asset!("/assets/manifest.webmanifest") }
         document::Script { src: asset!("/assets/sw-register.js") }
     }
 }
