@@ -1,0 +1,10 @@
+[application]
+
+[web.app]
+# HTML title tag content
+title = "SplitMoney Lite"
+
+base_path = "/splitmoney/"
+
+# include `assets` in web platform
+[web.resource]

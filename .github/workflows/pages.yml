@@ -1,0 +1,49 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install dx v0.7.2
+        run: |
+          set -euxo pipefail
+          DX_TAG=v0.7.2
+          ARCH=$(uname -m)
+          case "$ARCH" in
+            x86_64|amd64) DX_ARCH="x86_64" ;;
+            aarch64|arm64) DX_ARCH="aarch64" ;;
+            *) echo "Unsupported arch: $ARCH" && exit 1 ;;
+          esac
+          ASSET_URL="https://github.com/DioxusLabs/dioxus/releases/download/${DX_TAG}/dx-${DX_ARCH}-unknown-linux-gnu.tar.gz"
+          echo "Downloading ${ASSET_URL}"
+          mkdir -p "$HOME/.local/bin"
+          curl -fL "${ASSET_URL}" -o dx-archive.tgz
+          tar -xzf dx-archive.tgz -C "$HOME/.local/bin"
+          chmod +x "$HOME/.local/bin/dx"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Build web release
+        run: dx build -r --platform web
+
+      - name: Deploy pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./target/dx/splitmoney/release/web/public

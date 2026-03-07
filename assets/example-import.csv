@@ -1,0 +1,6 @@
+record_type,record_id,created_at,participant_id,participant_name,participant_active,title,icon,payer_id,total_cents,currency,shares_json,from_id,to_id,amount_cents,note
+participant,,,5c8dd95b-b0e2-45a4-9d42-468d94698f30,Alice,true,,,,,,,,,,
+participant,,,3e48f872-b4ea-4fd9-9e8f-5d49f3c3f75c,Bob,true,,,,,,,,,,
+participant,,,0a833c53-b35f-4c22-9fa0-8f385f6de97b,Carol,true,,,,,,,,,,
+expense,4512175f-f3a5-4144-b125-2490c9ea4cef,1739888400000,,,,Lunch,food,5c8dd95b-b0e2-45a4-9d42-468d94698f30,4500,USD,"[{""participant_id"":""5c8dd95b-b0e2-45a4-9d42-468d94698f30"",""amount_cents"":1500},{""participant_id"":""3e48f872-b4ea-4fd9-9e8f-5d49f3c3f75c"",""amount_cents"":1500},{""participant_id"":""0a833c53-b35f-4c22-9fa0-8f385f6de97b"",""amount_cents"":1500}]",,,,,
+settlement,ce50e11a-c179-4d65-bcc0-b2fbc5cd9ef2,1739974800000,,,,,,,,,,3e48f872-b4ea-4fd9-9e8f-5d49f3c3f75c,5c8dd95b-b0e2-45a4-9d42-468d94698f30,500,Partial repayment
