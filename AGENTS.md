@@ -4,7 +4,7 @@ Use only Dioxus 0.7 APIs (`cx`, `Scope`, `use_state` are not used here).
 
 # Web (Repository Specific)
 
-- Platform: web-only (`dioxus = { version = "0.7.1", features = ["web"] }`).
+- Platform: web-only (`dioxus = { version = "0.7.3", features = ["web"] }`).
 - Entry point: `src/main.rs` -> `dioxus::launch(App)`.
 - Root component: `src/app.rs`.
 - Persistent storage: browser LocalStorage key `splitwise_lite_state_v1` in `src/storage.rs`.
