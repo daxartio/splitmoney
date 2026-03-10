@@ -170,6 +170,21 @@ button:focus-visible {
     font-variant-numeric: tabular-nums;
 }
 
+.amount-row {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: 96px 1fr;
+    align-items: stretch;
+}
+
+.currency-code-input {
+    text-transform: uppercase;
+    text-align: center;
+    font-weight: 650;
+    letter-spacing: 0.04em;
+    font-variant-numeric: tabular-nums;
+}
+
 .inline-grid,
 .participant-row,
 .share-row,

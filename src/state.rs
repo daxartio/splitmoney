@@ -537,10 +537,6 @@ pub fn validate_new_expense(state: &AppState, input: &NewExpenseInput) -> Result
         ));
     }
 
-    if normalize_expense_title(&input.title).is_empty() {
-        return Err("Expense title is required.".to_string());
-    }
-
     Ok(())
 }
 

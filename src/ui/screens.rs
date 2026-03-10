@@ -317,6 +317,10 @@ impl ExpenseDraft {
                 });
             }
         }
+        let one_owes_id = share_drafts
+            .iter()
+            .map(|share| share.participant_id)
+            .find(|participant_id| Some(*participant_id) != payer);
 
         Self {
             title: String::new(),
@@ -324,7 +328,7 @@ impl ExpenseDraft {
             currency: state.last_currency.clone(),
             payer_id: payer,
             icon: ExpenseIcon::Other,
-            one_owes_id: payer,
+            one_owes_id,
             shares: share_drafts,
         }
     }
@@ -352,6 +356,17 @@ impl ExpenseDraft {
                 });
             }
         }
+        let one_owes_id = expense
+            .shares
+            .iter()
+            .map(|share| share.participant_id)
+            .find(|participant_id| *participant_id != expense.payer_id)
+            .or_else(|| {
+                share_drafts
+                    .iter()
+                    .map(|share| share.participant_id)
+                    .find(|participant_id| *participant_id != expense.payer_id)
+            });
 
         Self {
             title: expense.title.clone(),
@@ -359,7 +374,7 @@ impl ExpenseDraft {
             currency: expense.currency.clone(),
             payer_id: Some(expense.payer_id),
             icon: expense.icon,
-            one_owes_id: expense.shares.first().map(|share| share.participant_id),
+            one_owes_id,
             shares: share_drafts,
         }
     }
@@ -409,6 +424,23 @@ fn AddExpenseScreen(
         .filter(|participant| participant.is_active || referenced_ids.contains(&participant.id))
         .cloned()
         .collect::<Vec<_>>();
+    let payer_id = expense_editor().draft.payer_id;
+    let one_owes_candidates = selectable_participants
+        .iter()
+        .filter(|participant| Some(participant.id) != payer_id)
+        .cloned()
+        .collect::<Vec<_>>();
+    let one_owes_value = expense_editor()
+        .draft
+        .one_owes_id
+        .filter(|id| {
+            one_owes_candidates
+                .iter()
+                .any(|participant| participant.id == *id)
+        })
+        .map(|id| id.to_string())
+        .unwrap_or_default();
+    let can_select_one_owes = !one_owes_candidates.is_empty();
 
     rsx! {
         div { class: "panel",
@@ -498,18 +530,7 @@ fn AddExpenseScreen(
                             Err(err) => feedback.set(Some(err)),
                         }
                     },
-                    label { "Amount" }
-                    input {
-                        class: "amount-input",
-                        value: expense_editor().draft.total_input,
-                        placeholder: "0.00",
-                        inputmode: "decimal",
-                        oninput: move |event| {
-                            expense_editor.with_mut(|editor| editor.draft.total_input = event.value());
-                        },
-                    }
-
-                    label { "Title" }
+                    label { "Title (optional)" }
                     input {
                         value: expense_editor().draft.title,
                         placeholder: "Dinner, Taxi, Rent...",
@@ -518,47 +539,77 @@ fn AddExpenseScreen(
                         },
                     }
 
-                    div { class: "inline-grid",
-                        div {
-                            label { "Payer" }
-                            select {
-                                value: expense_editor().draft.payer_id.map(|id| id.to_string()).unwrap_or_default(),
-                                onchange: move |event| {
-                                    if let Ok(id) = Uuid::parse_str(&event.value()) {
-                                        expense_editor.with_mut(|editor| editor.draft.payer_id = Some(id));
-                                    }
-                                },
-                                for participant in &selectable_participants {
-                                    option { value: participant.id.to_string(), "{participant.name}" }
-                                }
-                            }
+                    label { "Amount" }
+                    div { class: "amount-row",
+                        input {
+                            class: "currency-code-input",
+                            value: expense_editor().draft.currency,
+                            list: "currency-codes",
+                            placeholder: "USD",
+                            oninput: move |event| {
+                                expense_editor.with_mut(|editor| editor.draft.currency = event.value());
+                            },
+                            onblur: move |_| {
+                                let next_currency = normalize_currency(&expense_editor().draft.currency);
+                                expense_editor.with_mut(|editor| editor.draft.currency = next_currency.clone());
+                                state.with_mut(|store| store.last_currency = next_currency);
+                                persist_state(state);
+                            },
                         }
-                        div {
-                            label { "Currency" }
-                            input {
-                                value: expense_editor().draft.currency,
-                                list: "currency-codes",
-                                placeholder: "USD or custom code",
-                                oninput: move |event| {
-                                    expense_editor.with_mut(|editor| editor.draft.currency = event.value());
-                                },
-                                onblur: move |_| {
-                                    let next_currency = normalize_currency(&expense_editor().draft.currency);
-                                    expense_editor.with_mut(|editor| editor.draft.currency = next_currency.clone());
-                                    state.with_mut(|store| store.last_currency = next_currency);
-                                    persist_state(state);
-                                },
-                            }
-                            datalist { id: "currency-codes",
-                                for code in CURRENCY_CODES {
-                                    option { value: *code }
+                        input {
+                            class: "amount-input",
+                            value: expense_editor().draft.total_input,
+                            placeholder: "0.00",
+                            inputmode: "decimal",
+                            oninput: move |event| {
+                                expense_editor.with_mut(|editor| editor.draft.total_input = event.value());
+                            },
+                        }
+                    }
+                    datalist { id: "currency-codes",
+                        for code in CURRENCY_CODES {
+                            option { value: *code }
+                        }
+                    }
+                    p { class: "meta", "Choose an ISO currency code or type your own code." }
+
+                    div {
+                        label { "Payer" }
+                        select {
+                            value: expense_editor().draft.payer_id.map(|id| id.to_string()).unwrap_or_default(),
+                            onchange: move |event| {
+                                if let Ok(id) = Uuid::parse_str(&event.value()) {
+                                    expense_editor.with_mut(|editor| {
+                                        editor.draft.payer_id = Some(id);
+                                        let has_valid_one_owes = editor
+                                            .draft
+                                            .one_owes_id
+                                            .is_some_and(|one_owes_id| {
+                                                one_owes_id != id
+                                                    && editor
+                                                        .draft
+                                                        .shares
+                                                        .iter()
+                                                        .any(|share| share.participant_id == one_owes_id)
+                                            });
+                                        if !has_valid_one_owes {
+                                            editor.draft.one_owes_id = editor
+                                                .draft
+                                                .shares
+                                                .iter()
+                                                .map(|share| share.participant_id)
+                                                .find(|participant_id| *participant_id != id);
+                                        }
+                                    });
                                 }
+                            },
+                            for participant in &selectable_participants {
+                                option { value: participant.id.to_string(), "{participant.name}" }
                             }
-                            p { class: "meta", "Choose an ISO currency code or type your own code." }
                         }
                     }
 
-                    label { "Icon" }
+                    label { "Type" }
                     div { class: "icon-grid",
                         for icon in ExpenseIcon::ALL {
                             button {
@@ -614,19 +665,21 @@ fn AddExpenseScreen(
 
                         div { class: "one-owes-row",
                             select {
-                                value: expense_editor().draft.one_owes_id.map(|id| id.to_string()).unwrap_or_default(),
+                                value: one_owes_value,
+                                disabled: !can_select_one_owes,
                                 onchange: move |event| {
                                     if let Ok(id) = Uuid::parse_str(&event.value()) {
                                         expense_editor.with_mut(|editor| editor.draft.one_owes_id = Some(id));
                                     }
                                 },
-                                for participant in &selectable_participants {
+                                for participant in &one_owes_candidates {
                                     option { value: participant.id.to_string(), "{participant.name}" }
                                 }
                             }
                             button {
                                 r#type: "button",
                                 class: "secondary",
+                                disabled: !can_select_one_owes,
                                 onclick: move |_| {
                                     let total_cents = match parse_money_to_cents(&expense_editor().draft.total_input) {
                                         Ok(value) => value,
@@ -636,10 +689,20 @@ fn AddExpenseScreen(
                                         }
                                     };
 
+                                    let Some(payer_id) = expense_editor().draft.payer_id else {
+                                        feedback.set(Some("Select a payer participant.".to_string()));
+                                        return;
+                                    };
+
                                     let Some(one_owes) = expense_editor().draft.one_owes_id else {
                                         feedback.set(Some("Select who owes all.".to_string()));
                                         return;
                                     };
+
+                                    if one_owes == payer_id {
+                                        feedback.set(Some("Who owes all must be different from the payer.".to_string()));
+                                        return;
+                                    }
 
                                     expense_editor.with_mut(|editor| {
                                         for share in &mut editor.draft.shares {
@@ -866,7 +929,12 @@ fn AddSettlementScreen(
                         value: settlement_editor().draft.from_id.map(|id| id.to_string()).unwrap_or_default(),
                         onchange: move |event| {
                             if let Ok(id) = Uuid::parse_str(&event.value()) {
-                                settlement_editor.with_mut(|editor| editor.draft.from_id = Some(id));
+                                let next_to_id =
+                                    participants.iter().find(|participant| participant.id != id).map(|participant| participant.id);
+                                settlement_editor.with_mut(|editor| {
+                                    editor.draft.from_id = Some(id);
+                                    editor.draft.to_id = next_to_id;
+                                });
                             }
                         },
                         for participant in &participants {
@@ -882,7 +950,9 @@ fn AddSettlementScreen(
                                 settlement_editor.with_mut(|editor| editor.draft.to_id = Some(id));
                             }
                         },
-                        for participant in &participants {
+                        for participant in participants.iter().filter(|participant| {
+                            Some(participant.id) != settlement_editor().draft.from_id
+                        }) {
                             option { value: participant.id.to_string(), "{participant.name}" }
                         }
                     }
@@ -1004,11 +1074,12 @@ fn HistoryScreen(
                                     div { class: "history-top",
                                         div { class: "history-title",
                                             IconBadge { icon: expense.icon }
-                                            strong { "{expense.title}" }
+                                            strong { "{expense_title_for_history(&expense)}" }
                                         }
                                         span { class: "money", "{format_money(expense.total_cents, &expense.currency)}" }
                                     }
                                     p { class: "muted", "Paid by {participant_name(&snapshot, expense.payer_id)}" }
+                                    p { class: "meta", "Type: {expense.icon.label()}" }
                                     p { class: "meta", "{format_timestamp(expense.created_at)}" }
                                     p { class: "meta", "Expense ID: {expense_id}" }
 
@@ -1248,8 +1319,9 @@ fn history_matches(item: &HistoryItem, state: &AppState, query: &str) -> bool {
 
     let haystack = match item {
         HistoryItem::Expense(expense) => format!(
-            "{} {} {}",
+            "{} {} {} {}",
             expense.title,
+            expense.icon.label(),
             participant_name(state, expense.payer_id),
             expense.currency
         ),
@@ -1263,6 +1335,14 @@ fn history_matches(item: &HistoryItem, state: &AppState, query: &str) -> bool {
     };
 
     haystack.to_lowercase().contains(query)
+}
+
+fn expense_title_for_history(expense: &Expense) -> String {
+    if expense.title.trim().is_empty() {
+        "Untitled expense".to_string()
+    } else {
+        expense.title.clone()
+    }
 }
 
 fn persist_state(state: Signal<AppState>) {
